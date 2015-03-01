@@ -1,0 +1,71 @@
+---
+# tasks file for solr
+
+- name: install lsof (needed by solr start)
+  yum: name=lsof state=present
+
+- name: stat the solr tarball
+  stat: path="/mapr/{{cluster_name}}/user/mapr/solr-{{solr_version}}.tgz"
+  register: solr_tarball
+
+- name: download Solr 4.10.3
+  get_url:
+    url: http://archive.apache.org/dist/lucene/solr/{{solr_version}}/solr-{{solr_version}}.tgz
+    dest: /tmp
+    sha256sum: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb221160613356532e2b6
+  when: solr_tarball.stat.exists == False
+
+- name: ensure solr_home exists
+  file: state=directory path={{solr_home}} owner=root group=root 
+
+- name: untar Solr
+  command: tar -C {{solr_home}} -xf solr-{{solr_version}}.tgz
+  args:
+    chdir: /tmp
+    creates: '{{solr_home}}/solr-{{solr_version}}'
+
+- name: set ownership to mapr for solr
+  file: state=directory mode=0755 owner=mapr group=mapr recurse=true path={{item}}
+  with_items:
+    - '{{solr_home}}/solr-{{solr_version}}'
+
+# XXX: this directory should not be hard coded
+- name: check for solr app directory
+  sudo_user: mapr
+  command: hadoop fs -test -d /user/mapr/solr
+  register: solr_app_dir_exists
+  failed_when: solr_app_dir_exists.rc not in (0,1,255)
+
+- debug: var=solr_app_dir_exists
+
+# Cannot do this when in secure mode without logging in
+- name: create solr app home
+  sudo_user: mapr
+  command: hadoop fs -mkdir -p /user/mapr/solr/{{ansible_hostname}}
+  when: solr_app_dir_exists.rc in (1,255) and (secure_cluster is not defined or secure_cluster != True)
+
+#- name: XXX - better to create a new volume here?
+#  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr owner=mapr group=mapr
+
+#- name: XXX - better to create a new volume here?
+#  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr/{{ansible_hostname}} owner=mapr group=mapr
+
+- name: copy solr config to solr's home
+  sudo: yes
+  sudo_user: mapr
+  command: cp -r {{solr_home}}/solr-{{solr_version}}/example /mapr/{{cluster_name}}/user/mapr/solr/{{ansible_hostname}}
+
+- name: disable locks on the index files (we are storing on NFS, no locking)
+  lineinfile:
+    line: "<lockType>${solr.lock.type:single}</lockType>"
+    regexp: "<lockType>.*solr.lock.type"
+    dest: '{{solr_home}}/solr-{{solr_version}}/example/solr/collection1/conf/solrconfig.xml'
+
+- name: set data dir to a MapR FS directory
+  lineinfile:
+    line: "<dataDir>${solr.data.dir:/mapr/{{cluster_name}}/user/mapr/solr/{{ansible_hostname}}}</dataDir>"
+    regexp: "<dataDir>.*solr.data.dir"
+    dest: '{{solr_home}}/solr-{{solr_version}}/example/solr/collection1/conf/solrconfig.xml'
+
+- name: write warden.conf for solr
+  template: src=warden.solr.conf.j2 dest=/opt/mapr/conf/conf.d/warden.solr.conf mode=0644 owner=mapr group=mapr 
