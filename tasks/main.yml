@@ -36,8 +36,6 @@
   register: solr_app_dir_exists
   failed_when: solr_app_dir_exists.rc not in (0,1,255)
 
-- debug: var=solr_app_dir_exists
-
 # Cannot do this when in secure mode without logging in
 - name: create solr app home
   sudo_user: mapr
