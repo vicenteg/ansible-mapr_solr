@@ -1,8 +1,9 @@
 
 services=solr:all
 service.displayname=Solr
-service.command.start={{solr_home}}/solr-{{solr_version}}/bin/solr -Dcollection.configName={{solr_collection}} -DzkHost={%- for zk in groups['zookeepers'] %}{{hostvars[zk].ansible_default_ipv4.address}}:{{zookeeper_port}}{% if not loop.last %},{% endif %}{% endfor %} -jar start.jar
-service.command.stop={{solr_home}}/solr-{{solr_version}}/bin/solr stop
+service.command.start={{solr_home}}/solr-{{solr_version}}/bin/solr -c -z {% for zk in groups['zookeepers'] %}{{hostvars[zk].ansible_default_ipv4.address}}:{{zookeeper_port}}{% if not loop.last %},{% endif %}{% endfor %}
+
+service.command.stop={{solr_home}}/solr-{{solr_version}}/bin/solr stop -all
 service.command.type=inline
 service.command.monitorcommand={{solr_home}}/solr-{{solr_version}}/bin/solr -i
 service.port=8983
