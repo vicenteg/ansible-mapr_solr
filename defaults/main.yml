@@ -2,6 +2,7 @@
 # defaults file for solr
 
 solr_version: 4.10.3
+solr_tarball_sha256: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb221160613356532e2b6
 solr_home: /opt/solr
 solr_collection: solr_collection
 zookeeper_port: 5181
