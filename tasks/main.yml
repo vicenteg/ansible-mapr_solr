@@ -31,6 +31,7 @@
 
 # XXX: this directory should not be hard coded
 - name: check for solr app directory
+  sudo: yes
   sudo_user: mapr
   command: hadoop fs -test -d /user/mapr/solr
   register: solr_app_dir_exists
@@ -38,15 +39,16 @@
 
 # Cannot do this when in secure mode without logging in
 - name: create solr app home
+  sudo: yes
   sudo_user: mapr
   command: hadoop fs -mkdir -p /user/mapr/solr/{{ansible_hostname}}
   when: solr_app_dir_exists.rc in (1,255) and (secure_cluster is not defined or secure_cluster != True)
 
-#- name: XXX - better to create a new volume here?
-#  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr owner=mapr group=mapr
+- name: XXX - better to create a new volume here?
+  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr owner=mapr group=mapr
 
-#- name: XXX - better to create a new volume here?
-#  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr/{{ansible_hostname}} owner=mapr group=mapr
+- name: XXX - better to create a new volume here?
+  file: state=directory path=/mapr/{{cluster_name}}/user/mapr/solr/{{ansible_hostname}} owner=mapr group=mapr
 
 - name: copy solr config to solr's home
   sudo: yes
