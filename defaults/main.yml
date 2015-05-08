@@ -6,3 +6,7 @@ solr_tarball_sha256: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb22116061335653
 solr_home: /opt/solr
 solr_collection: solr_collection
 zookeeper_port: 5181
+
+mapr_username: mapr
+mapr_password: mapr
+mapr_webserver: https://localhost:8443
