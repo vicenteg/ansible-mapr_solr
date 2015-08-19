@@ -48,6 +48,15 @@
   mapr_volume: state=present name=solr.{{hostvars[item].ansible_hostname}} path=/apps/solr/{{hostvars[item].ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
   with_items: groups["solr"]
 
+- name: add MapR libraries to solr example
+  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/example/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
+  with_items:
+    - maprfs-4.1.0-mapr.jar
+    - hadoop-common-2.5.1.jar
+    - commons-collections-3.2.1.jar
+    - hadoop-auth-2.5.1.jar
+    - json-20080701.jar
+
 - name: copy solr config to solr's home
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
