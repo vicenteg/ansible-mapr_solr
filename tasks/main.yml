@@ -1,8 +1,15 @@
 ---
 # tasks file for solr
 
+- name: get zookeeper list
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  shell: maprcli node listzookeepers | sed -n '2s/ *$//p'
+  register: zookeepers
+
 - name: install lsof (needed by solr start)
   yum: name=lsof state=present
+  environment: proxy_env
 
 - name: stat the solr tarball
   stat: path="/tmp/solr-{{solr_version}}.tgz"
@@ -12,8 +19,9 @@
   get_url:
     url: http://archive.apache.org/dist/lucene/solr/{{solr_version}}/solr-{{solr_version}}.tgz
     dest: /tmp
-    sha256sum: '{{solr_tarball_sha256}}'
+#    sha256sum: '{{solr_tarball_sha256}}'
   when: solr_tarball.stat.exists == False
+  environment: proxy_env
 
 - name: ensure solr_home exists
   file: state=directory path={{solr_home}} owner=root group=root 
@@ -24,18 +32,26 @@
     chdir: /tmp
     creates: '{{solr_home}}/solr-{{solr_version}}'
 
+- name: write solr init script
+  template: src=solr4init.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4init' mode=0755 owner={{mapr_admin_username}} 
+
+- name: write solr bootstrap script
+  template: src=solrbootstrap.j2 dest='{{solr_home}}/solr-{{solr_version}}/solrbootstrap' mode=0755 owner={{mapr_admin_username}}
+
 - name: set ownership to mapr for solr
   file: state=directory mode=0755 owner=mapr group=mapr recurse=true path={{item}}
   with_items:
     - '{{solr_home}}/solr-{{solr_version}}'
 
 - name: create a volume for Solr
-  mapr_volume: state=present name=solr.{{ansible_hostname}} path=/apps/solr/{{ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
+  run_once: true
+  mapr_volume: state=present name=solr.{{hostvars[item].ansible_hostname}} path=/apps/solr/{{hostvars[item].ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
+  with_items: groups["solr"]
 
 - name: copy solr config to solr's home
   sudo: yes
-  sudo_user: mapr
-  command: hadoop fs -cp -f -p file://{{solr_home}}/solr-{{solr_version}}/example hdfs:///apps/solr/{{ansible_hostname}}
+  sudo_user: '{{mapr_admin_username}}'
+  command: hadoop fs -cp -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} hdfs:///apps/solr/{{ansible_hostname}}
   #command: cp -r {{solr_home}}/solr-{{solr_version}}/example /apps/solr/{{ansible_hostname}}
 
 - name: disable locks on the index files (we are storing on NFS, no locking)
@@ -43,14 +59,30 @@
   lineinfile:
     line: "<lockType>${solr.lock.type:single}</lockType>"
     regexp: "<lockType>.*solr.lock.type"
-    dest: '{{solr_home}}/solr-{{solr_version}}/example/solr/collection1/conf/solrconfig.xml'
+    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
 
 - name: set data dir to a MapR FS directory
   sudo: yes
   lineinfile:
     line: "<dataDir>${solr.data.dir:/mapr/{{cluster_name}}/apps/solr/{{ansible_hostname}}}</dataDir>"
     regexp: "<dataDir>.*solr.data.dir"
-    dest: '{{solr_home}}/solr-{{solr_version}}/example/solr/collection1/conf/solrconfig.xml'
+    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
+
+- name: bootstrap solr zk
+  run_once: true
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: '{{solr_home}}/solr-{{solr_version}}/solrbootstrap'
+  async: 60
+  poll: 0
+  register: bootstrap
+  when: inventory_hostname == '{{groups["solr"]|first}}'
+
+- debug: var=bootstrap
+
+- name: wait for solr to be listening
+  wait_for: port=8983 timeout=60
+  when: inventory_hostname == '{{groups["solr"]|first}}'
 
 - name: write warden.conf for solr
   sudo: yes

@@ -1,2 +1,8 @@
 ---
 # handlers file for solr
+
+- name: bootstrap solr zk
+  run_once: true
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: echo '{{solr_home}}/solr-{{solr_version}}/solrbootstrap'

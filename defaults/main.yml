@@ -1,12 +1,16 @@
 ---
 # defaults file for solr
 
-solr_version: 4.10.3
+#solr_version: 4.10.3
 solr_tarball_sha256: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb221160613356532e2b6
+solr_version: 4.4.0
+solr_tarball_sha256: 9c94131bc5f8f335bfef46715394ab78373e31b3
 solr_home: /opt/solr
-solr_collection: solr_collection
+solr_collection: collection1
+solr_config_home: example
 zookeeper_port: 5181
+
 
 mapr_username: mapr
 mapr_password: mapr
-mapr_webserver: https://localhost:8443
+mapr_webserver: https://{{groups["webserver"] | first}}:8443

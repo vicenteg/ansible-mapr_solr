@@ -1,13 +1,18 @@
 
 services=solr:all
 service.displayname=Solr
-service.command.start={{solr_home}}/solr-{{solr_version}}/bin/solr -c -z {% for zk in groups['zookeepers'] %}{{hostvars[zk].ansible_default_ipv4.address}}:{{zookeeper_port}}{% if not loop.last %},{% endif %}{% endfor %}
+service.command.start={{solr_home}}/solr-{{solr_version}}/solr4init start
 
-service.command.stop={{solr_home}}/solr-{{solr_version}}/bin/solr stop -all
-service.command.type=inline
-service.command.monitorcommand={{solr_home}}/solr-{{solr_version}}/bin/solr -i
+service.command.stop={{solr_home}}/solr-{{solr_version}}/solr4init stop
+service.command.type=BACKGROUND
+service.command.monitorcommand={{solr_home}}/solr-{{solr_version}}/solr4init status
 service.port=8983
 service.ui.port=8983
 service.uri=about
 service.logs.location={{solr_home}}/solr-{{solr_version}}/logs
 service.process.type=JAVA
+service.alarm.label=SolrAlarm
+service.alarm.tersename=solr
+service.uri: /solr
+service.port: 8983
+service.ui.port: 8983
