@@ -48,15 +48,6 @@
   mapr_volume: state=present name=solr.{{hostvars[item].ansible_hostname}} path=/apps/solr/{{hostvars[item].ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
   with_items: groups["solr"]
 
-- name: add MapR libraries to solr example
-  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/example/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
-  with_items:
-    - maprfs-4.1.0-mapr.jar
-    - hadoop-common-2.5.1.jar
-    - commons-collections-3.2.1.jar
-    - hadoop-auth-2.5.1.jar
-    - json-20080701.jar
-
 - name: copy solr config to solr's home
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
@@ -78,14 +69,14 @@
     dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
 
 - name: bootstrap solr zk
-  run_once: true
+#  run_once: true
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
   command: '{{solr_home}}/solr-{{solr_version}}/solrbootstrap'
   async: 60
   poll: 0
   register: bootstrap
-  when: inventory_hostname == '{{groups["solr"]|first}}'
+#  when: inventory_hostname == '{{groups["solr"]|first}}'
 
 - debug: var=bootstrap
 
@@ -96,3 +87,13 @@
 - name: write warden.conf for solr
   sudo: yes
   template: src=warden.solr.conf.j2 dest=/opt/mapr/conf/conf.d/warden.solr.conf mode=0644 owner=mapr group=mapr 
+
+- name: add MapR libraries to solr example
+  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/example/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
+  with_items:
+    - maprfs-4.1.0-mapr.jar
+    - hadoop-common-2.5.1.jar
+    - commons-collections-3.2.1.jar
+    - hadoop-auth-2.5.1.jar
+    - json-20080701.jar
+
