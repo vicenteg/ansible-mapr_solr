@@ -1,0 +1,13 @@
+#! /bin/bash
+if [ $# != 2 ]; then
+   echo "Usage: $0 collection-name number-of-shards"
+   echo "collection-name will be created in installdir/instance/solr/collection-name and loaded into Zookeeper"
+   exit 1
+fi
+collection=$1
+nshards=${2:-3}
+cp -a installdir/instance/solr/collection1/ installdir/instance/solr/$collection
+sed -i 's/collection1/collection2/' installdir/instance/solr/$collection/core.properties
+installdir/instance/cloud-scripts/zkcli.sh -zkhost zookeepers/solr -cmd upconfig -confdir installdir/instance/solr/$collection/conf -confname ${collection}Conf
+sleep 30
+curl "localhost:8983/solr/admin/collections?action=CREATE&name=${collection}&numShards=${nshards}&replicationFactor=1&collection.configName=${collection}Conf"
