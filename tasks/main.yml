@@ -69,14 +69,12 @@
     dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
 
 - name: bootstrap solr zk
-  run_once: true
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
   command: '{{solr_home}}/solr-{{solr_version}}/solrbootstrap'
   async: 60
   poll: 0
   register: bootstrap
-  when: inventory_hostname == '{{groups["solr"]|first}}'
 
 
 - debug: var=bootstrap
