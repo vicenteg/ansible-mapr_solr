@@ -98,6 +98,7 @@
   register: bootstrap
   when: solr_config_home_check.stat.exists == False
 
+
 - debug: var=bootstrap
 
 - name: wait for solr to be listening
