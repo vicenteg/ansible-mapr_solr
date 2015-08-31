@@ -35,6 +35,9 @@
 - name: write solr init script
   template: src=solr4init.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4init' mode=0755 owner={{mapr_admin_username}} 
 
+- name: write solr collection add script
+  template: src=solr4add.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4add' mode=0755 owner={{mapr_admin_username}}
+
 - name: write solr bootstrap script
   template: src=solrbootstrap.j2 dest='{{solr_home}}/solr-{{solr_version}}/solrbootstrap' mode=0755 owner={{mapr_admin_username}}
 
@@ -45,28 +48,46 @@
 
 - name: create a volume for Solr
   run_once: true
-  mapr_volume: state=present name=solr.{{hostvars[item].ansible_hostname}} path=/apps/solr/{{hostvars[item].ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
+  # mapr_volume: state=present name=solr.{{hostvars[item].ansible_hostname}} path=/apps/solr/{{hostvars[item].ansible_hostname}} createparent=1 replication=1 minreplication=1 mapr_webserver={{mapr_webserver}} username=mapr password=mapr
+  mapr_volume: state=present name=solr_home path=/apps/solr createparent=1 replication=3 minreplication=2 mapr_webserver={{mapr_webserver}} username={{mapr_admin_username}} password={{mapr_admin_password_clear|default("mapr")}}
   with_items: groups["solr"]
+
+#- name: disable locks on the index files (we are storing on NFS, no locking)
+#  sudo: yes
+#  lineinfile:
+#    line: "<lockType>${solr.lock.type:single}</lockType>"
+#    regexp: "<lockType>.*solr.lock.type"
+#    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
+
+#- name: set data dir to a MapR FS directory
+#  sudo: yes
+#  lineinfile:
+#    line: "<dataDir>${solr.data.dir:/mapr/{{cluster_name}}/apps/solr/{{ansible_hostname}}}</dataDir>"
+#    regexp: "<dataDir>.*solr.data.dir"
+#    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
+
+- name: check for solr_config_home
+  stat: path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
+  register: solr_config_home_check
+
+- name: copy example to solr_config_home
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: cp -a {{solr_home}}/solr-{{solr_version}}/example {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
+  when: solr_config_home_check.stat.exists == False
 
 - name: copy solr config to solr's home
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
-  command: hadoop fs -cp -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} hdfs:///apps/solr/{{ansible_hostname}}
+  run_once: yes
+  command: hadoop fs -copyFromLocal -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} {{solr_hdfs_home}}
   #command: cp -r {{solr_home}}/solr-{{solr_version}}/example /apps/solr/{{ansible_hostname}}
 
-- name: disable locks on the index files (we are storing on NFS, no locking)
+- name: delete solr log 
   sudo: yes
-  lineinfile:
-    line: "<lockType>${solr.lock.type:single}</lockType>"
-    regexp: "<lockType>.*solr.lock.type"
-    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
-
-- name: set data dir to a MapR FS directory
-  sudo: yes
-  lineinfile:
-    line: "<dataDir>${solr.data.dir:/mapr/{{cluster_name}}/apps/solr/{{ansible_hostname}}}</dataDir>"
-    regexp: "<dataDir>.*solr.data.dir"
-    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
+  sudo_user: '{{mapr_admin_username}}'
+  file: path='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/logs/solr.log' state=absent 
+  when: solr_config_home_check.stat.exists == False
 
 - name: bootstrap solr zk
   sudo: yes
@@ -75,23 +96,73 @@
   async: 60
   poll: 0
   register: bootstrap
+  when: solr_config_home_check.stat.exists == False
 
 - debug: var=bootstrap
 
 - name: wait for solr to be listening
-  wait_for: port=8983 timeout=60
-  when: inventory_hostname == '{{groups["solr"]|first}}'
+  wait_for: port=8983 timeout=30 delay=10
+  when: bootstrap.started is defined
+
+- name: wait for solr to finish bootstrapping
+  wait_for: path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/logs/solr.log state=present search_regex="live nodes size" timeout=60
+  when: bootstrap.started is defined
+ 
+- name: kill the bootstrapped solr
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: pkill -f "solr -jar start.jar"
+  when: bootstrap.started is defined
 
 - name: write warden.conf for solr
   sudo: yes
   template: src=warden.solr.conf.j2 dest=/opt/mapr/conf/conf.d/warden.solr.conf mode=0644 owner=mapr group=mapr 
+  register: warden_config
 
 - name: add MapR libraries to solr example
-  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/example/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
+  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
   with_items:
+    - zookeeper-3.4.5-mapr-1503.jar
     - maprfs-4.1.0-mapr.jar
     - hadoop-common-2.5.1.jar
     - commons-collections-3.2.1.jar
     - hadoop-auth-2.5.1.jar
     - json-20080701.jar
+    - protobuf-java-2.5.0.jar
+
+- name: remove old solr libraries
+  file: path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=absent
+  with_items:
+    - zookeeper-3.4.5.jar
+    - protobuf-java-2.4.0a.jar
+
+- name: give warden a little time to discover the new service
+  pause: seconds=30
+  when: warden_config|changed
+
+- name: start solr
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: maprcli node services -action restart -name solr -filter csvc==solr
+
+- name: wait for solr to be listening
+  wait_for: port=8983 timeout=60
+  #when: inventory_hostname == '{{groups["solr"]|first}}'
+
+#- name: see if our collection already exists
+#  run_once: yes
+#  command: curl -f localhost:8983/solr/{{solr_collection}}/schema/name
+#  register: collection_probe
+#  changed_when: false
+#  failed_when: collection_probe.rc not in (0, 22)
+
+
+#- name: add a solr collection
+#  sudo: yes
+#  sudo_user: '{{mapr_admin_username}}'
+#  command: '{{solr_home}}/solr-{{solr_version}}/solr4add {{solr_collection}}'
+#  args:
+#    chdir: '{{solr_home}}/solr-{{solr_version}}'
+#  environment: proxy_env
+#  when: collection_probe.rc == 22
 

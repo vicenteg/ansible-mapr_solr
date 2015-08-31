@@ -6,8 +6,10 @@ solr_tarball_sha256: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb22116061335653
 solr_version: 4.4.0
 solr_tarball_sha256: 9c94131bc5f8f335bfef46715394ab78373e31b3
 solr_home: /opt/solr
-solr_collection: collection1
-solr_config_home: example
+solr_collection: my_collection
+solr_config_home: wfs
+solr_hdfs_home: maprfs:///apps/solr
+solr_hdfs_data: '{{solr_hdfs_home}}/data'
 zookeeper_port: 5181
 
 

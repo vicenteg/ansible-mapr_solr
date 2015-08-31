@@ -11,9 +11,8 @@
 
 dir={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
 user="{{mapr_admin_username}}"
-#cmd="java -Dsolr.solr.home=$dir/solr -DzkHost=$zookeepers/solr -jar $dir/start.jar"
-cmd="java -DzkHost={{zookeepers.stdout}}/solr -jar $dir/start.jar"
-#cmd="java -cp `hadoop classpath` -Dzookeeper.saslprovider=com.mapr.security.simplesasl.SimpleSaslProvider -Dhadoop.login=maprsasl -Dzookeeper.sasl.serverconfig=Server_simple -Dzookeeper.sasl.clientconfig=Client_simple -Dmapr.library.flatclass -Djava.library.path=/opt/mapr/lib -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf -Dsolr.directoryFactory=HdfsDirectoryFactory -Dsolr.lock.type=hdfs -Dsolr.data.dir=maprfs:///apps/solr/data -Dsolr.updatelog=maprfs:///apps/solr/data/log -DzkHost={{zookeepers.stdout}}/solr -jar $dir/start.jar"
+cmd="java -cp `hadoop classpath`:/opt/mapr/lib/protobuf-java-2.5.0.jar -Dzookeeper.sasl.client=false -Dzookeeper.saslprovider=com.mapr.security.maprsasl.MaprSaslProvider -Dhadoop.login=maprsasl -Dmapr.library.flatclass -Djava.library.path=/opt/mapr/lib -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf -Dsolr.directoryFactory=HdfsDirectoryFactory -Dsolr.lock.type=hdfs -Dsolr.hdfs.home={{solr_hdfs_home}} -Dsolr.data.dir={{solr_hdfs_data}} -DzkHost={{zookeepers.stdout}}/solr -jar $dir/start.jar"
+
 
 name=`basename $0`
 pid_file="/var/tmp/$name.pid"
