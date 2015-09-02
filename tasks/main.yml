@@ -121,7 +121,7 @@
   register: warden_config
 
 - name: add MapR libraries to solr example
-  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link 
+  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
   with_items:
     - zookeeper-3.4.5-mapr-1503.jar
     - maprfs-4.1.0-mapr.jar
@@ -134,7 +134,10 @@
 - name: remove old solr libraries
   file: path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=absent
   with_items:
+    - hadoop-auth-2.2.0.jar
+    - hadoop-common-2.2.0.jar
     - zookeeper-3.4.5.jar
+    - zookeeper-3.4.6.jar
     - protobuf-java-2.4.0a.jar
 
 - name: give warden a little time to discover the new service
