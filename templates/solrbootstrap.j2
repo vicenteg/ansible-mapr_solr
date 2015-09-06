@@ -5,5 +5,5 @@ cd {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
 # Unfortunately the zkcli script does not work, which means we need to use the method below.
 # {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/cloud-scripts/zkcli.sh -cmd bootstrap -z {{zookeepers.stdout}}/solr -c {{solr_collection}} -d {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf -n {{solr_collection}}_conf -s {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
 
-java -DnumShards={{groups["solr"]|length}} -Dbootstrap_confdir={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/collection1/conf -Dcollection.configName=collection1_conf -DzkHost={{zookeepers.stdout}}/solr -jar start.jar
+java -DnumShards={{groups["solr"]|length}} -Dbootstrap_confdir={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf -Dcollection.configName=collection1_conf -DzkHost={{zookeepers.stdout}}/solr -jar start.jar
 

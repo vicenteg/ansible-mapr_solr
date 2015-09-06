@@ -34,6 +34,7 @@
 
 - name: write solr init script
   template: src=solr4init.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4init' mode=0755 owner={{mapr_admin_username}} 
+  notify: restart solr
 
 - name: write solr collection add script
   template: src=solr4add.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4add' mode=0755 owner={{mapr_admin_username}}
@@ -52,18 +53,12 @@
   mapr_volume: state=present name=solr_home path=/apps/solr createparent=1 replication=3 minreplication=2 mapr_webserver={{mapr_webserver}} username={{mapr_admin_username}} password={{mapr_admin_password_clear|default("mapr")}}
   with_items: groups["solr"]
 
+# Uncomment the following if not using HDFS.
 #- name: disable locks on the index files (we are storing on NFS, no locking)
 #  sudo: yes
 #  lineinfile:
 #    line: "<lockType>${solr.lock.type:single}</lockType>"
 #    regexp: "<lockType>.*solr.lock.type"
-#    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
-
-#- name: set data dir to a MapR FS directory
-#  sudo: yes
-#  lineinfile:
-#    line: "<dataDir>${solr.data.dir:/mapr/{{cluster_name}}/apps/solr/{{ansible_hostname}}}</dataDir>"
-#    regexp: "<dataDir>.*solr.data.dir"
 #    dest: '{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml'
 
 - name: check for solr_config_home
@@ -76,12 +71,26 @@
   command: cp -a {{solr_home}}/solr-{{solr_version}}/example {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
   when: solr_config_home_check.stat.exists == False
 
+- name: rename collection to {{collection_name}}
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: mv collection1 {{solr_collection}}
+  args:
+    chdir: "{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr"
+    removes: collection1
+
 - name: copy solr config to solr's home
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
   run_once: yes
   command: hadoop fs -copyFromLocal -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} {{solr_hdfs_home}}
   #command: cp -r {{solr_home}}/solr-{{solr_version}}/example /apps/solr/{{ansible_hostname}}
+
+- name: copy solrconfig.xml to the copied example
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  template: src=solrconfig.xml.j2 dest='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml' backup=yes owner='{{mapr_admin_username}}'
+  notify: restart solr
 
 - name: delete solr log 
   sudo: yes
@@ -97,7 +106,6 @@
   poll: 0
   register: bootstrap
   when: solr_config_home_check.stat.exists == False
-
 
 - debug: var=bootstrap
 
@@ -141,7 +149,7 @@
     - protobuf-java-2.4.0a.jar
 
 - name: give warden a little time to discover the new service
-  pause: seconds=30
+  pause: seconds=35
   when: warden_config|changed
 
 - name: start solr
@@ -151,7 +159,6 @@
 
 - name: wait for solr to be listening
   wait_for: port=8983 timeout=60
-  #when: inventory_hostname == '{{groups["solr"]|first}}'
 
 #- name: see if our collection already exists
 #  run_once: yes

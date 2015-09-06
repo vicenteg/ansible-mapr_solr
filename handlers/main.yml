@@ -1,6 +1,12 @@
 ---
 # handlers file for solr
 
+- name: restart solr
+  run_once: true
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  command: maprcli node services -action restart -name solr -filter csvc==solr
+
 - name: bootstrap solr zk
   run_once: true
   sudo: yes
