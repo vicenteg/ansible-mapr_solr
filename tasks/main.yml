@@ -79,18 +79,29 @@
     chdir: "{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr"
     removes: collection1
 
+# N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
+- name: rename collection in core.properties
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  lineinfile: dest="{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/core.properties" regexp="^name=" line="name={{solr_collection}}" backup=no
+
+- name: pause a few seconds
+  pause: seconds=5
+
+# N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
+- name: copy solrconfig.xml to the copied example
+  sudo: yes
+  sudo_user: '{{mapr_admin_username}}'
+  template: src=solrconfig.xml.j2 dest='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml' backup=no owner='{{mapr_admin_username}}'
+  notify: restart solr
+
+# N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
 - name: copy solr config to solr's home
   sudo: yes
   sudo_user: '{{mapr_admin_username}}'
   run_once: yes
   command: hadoop fs -copyFromLocal -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} {{solr_hdfs_home}}
   #command: cp -r {{solr_home}}/solr-{{solr_version}}/example /apps/solr/{{ansible_hostname}}
-
-- name: copy solrconfig.xml to the copied example
-  sudo: yes
-  sudo_user: '{{mapr_admin_username}}'
-  template: src=solrconfig.xml.j2 dest='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml' backup=yes owner='{{mapr_admin_username}}'
-  notify: restart solr
 
 - name: delete solr log 
   sudo: yes
