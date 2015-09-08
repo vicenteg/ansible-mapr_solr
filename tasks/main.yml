@@ -6,6 +6,7 @@
   sudo_user: '{{mapr_admin_username}}'
   shell: maprcli node listzookeepers | sed -n '2s/ *$//p'
   register: zookeepers
+  changed_when: false
 
 - name: install lsof (needed by solr start)
   yum: name=lsof state=present
