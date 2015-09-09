@@ -161,7 +161,7 @@
     - protobuf-java-2.4.0a.jar
 
 - name: give warden a little time to discover the new service
-  pause: seconds=35
+  pause: seconds=45
   when: warden_config|changed
 
 - name: start solr
