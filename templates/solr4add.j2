@@ -2,30 +2,31 @@
 
 installdir="/opt/solr/solr-{{solr_version}}"
 instance="{{solr_config_home}}"
+source_collection="my_collection"
 collection="$1"
 nshards="${2:-3}"
 
 zookeepers=$(maprcli node listzookeepers -noheader | sed -e 's/[[:space:]]*$//')
 
 if [ -z "$collection" ]; then
-   echo "Usage: $0 collection-name [number-of-shards]"
-   echo "collection-name will be created in $installdir/$instance/solr/collection-name and loaded into Zookeeper"
-   exit 1
+	echo "Usage: $0 collection-name [number-of-shards]"
+	echo "collection-name will be created in $installdir/$instance/solr/collection-name and loaded into Zookeeper"
+	exit 1
 fi
 
 if [ ! -d "$installdir/$instance" ]; then
-   cd $installdir
-   cp -a example $instance
-   chown -R mapr:mapr $instance
+	cd $installdir
+	cp -a example $instance
+	chown -R mapr:mapr $instance
 fi
 
 if curl -f localhost:8983/solr/$collection/schema/name?wt=json; then
 	echo "Collection $collection already exists."
 	exit 0
 else
-	cp -a $installdir/$instance/solr/collection1/ $installdir/$instance/solr/$collection
-	sed -i "s/collection1/$collection/" $installdir/$instance/solr/$collection/core.properties
-	$installdir/$instance/cloud-scripts/zkcli.sh -zkhost $zookeepers/solr -cmd upconfig -confdir $installdir/$instance/solr/$collection/conf -confname ${collection}Conf
+	cp -a $installdir/$instance/solr/$source_collection/ $installdir/$instance/solr/$collection
+	sed -i "s/$source_collection/$collection/" $installdir/$instance/solr/$collection/core.properties
+	$installdir/$instance/scripts/cloud-scripts/zkcli.sh -zkhost $zookeepers/solr -cmd upconfig -confdir $installdir/$instance/solr/$collection/conf -confname ${collection}Conf
 	sleep 30
 	curl -f "localhost:8983/solr/admin/collections?action=CREATE&name=${collection}&numShards=${nshards}&replicationFactor=1&collection.configName=${collection}Conf&wt=json"
 fi
