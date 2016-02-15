@@ -1,6 +1,6 @@
 ---
 dependencies:
-  - { role: mapr_python }
+  - { role: vicenteg.mapr_python }
 
 galaxy_info:
   author: your name
