@@ -21,7 +21,7 @@ Example Playbook
 ----------------
 
 ```
-- hosts: zookeepers
+- hosts: zookeeper
 - hosts: solr
   vars_files:
     - vars/global/main.yml
