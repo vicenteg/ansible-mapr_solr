@@ -138,10 +138,10 @@
   file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
   with_items:
     - zookeeper-3.4.5-mapr-1503.jar
-    - maprfs-4.1.0-mapr.jar
-    - hadoop-common-2.5.1.jar
-    - commons-collections-3.2.1.jar
-    - hadoop-auth-2.5.1.jar
+    - maprfs-5.1.0-mapr.jar
+    - hadoop-common-2.7.0.jar
+    - commons-collections-3.2.2.jar
+    - hadoop-auth-2.7.0.jar
     - json-20080701.jar
     - protobuf-java-2.5.0.jar
 
