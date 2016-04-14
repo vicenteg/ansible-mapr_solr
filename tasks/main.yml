@@ -133,7 +133,7 @@
   template: src=warden.solr.conf.j2 dest=/opt/mapr/conf/conf.d/warden.solr.conf mode=0644 owner=mapr group=mapr 
   register: warden_config
 
-- name: add MapR libraries to solr example
+- name: add MapR v5.1.0 libraries to solr example
   sudo_user: '{{mapr_admin_username}}'
   file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
   with_items:
@@ -144,6 +144,20 @@
     - hadoop-auth-2.7.0.jar
     - json-20080701.jar
     - protobuf-java-2.5.0.jar
+  when: mapr_version in ("v5.1.0")
+
+- name: add MapR v4.1.0 libraries to solr example
+  sudo_user: '{{mapr_admin_username}}'
+  file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
+  with_items:
+    - zookeeper-3.4.5-mapr-1503.jar
+    - maprfs-4.1.0-mapr.jar
+    - hadoop-common-2.5.1.jar
+    - commons-collections-3.2.1.jar
+    - hadoop-auth-2.5.1.jar
+    - json-20080701.jar
+    - protobuf-java-2.5.0.jar
+  when: mapr_version in ("v4.1.0")
 
 - name: remove old solr libraries
   sudo_user: '{{mapr_admin_username}}'
