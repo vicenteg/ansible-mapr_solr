@@ -2,13 +2,15 @@
 # tasks file for solr
 
 - name: get zookeeper list
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   shell: maprcli node listzookeepers | sed -n '2s/ *$//p'
   register: zookeepers
   changed_when: false
 
 - name: install lsof (needed by solr start)
-  sudo_user: root
+  become: yes
+  become_user: root
   yum: name=lsof state=present
   environment: proxy_env
 
@@ -24,28 +26,34 @@
   environment: proxy_env
 
 - name: ensure solr_home exists
-  sudo_user: root
+  become: yes
+  become_user: root
   file: state=directory path={{solr_home}} owner='{{mapr_admin_username}}' group='{{mapr_admin_username}}' 
 
 - name: untar Solr
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   unarchive: copy=no src=/tmp/solr-{{solr_version}}.tgz dest={{solr_home}} creates='{{solr_home}}/solr-{{solr_version}}'
 
 - name: write solr init script
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   template: src=solr4init.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4init' mode=0755 owner={{mapr_admin_username}} 
   notify: restart solr
 
 - name: write solr collection add script
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   template: src=solr4add.j2 dest='{{solr_home}}/solr-{{solr_version}}/solr4add' mode=0755 owner={{mapr_admin_username}}
 
 - name: write solr bootstrap script
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   template: src=solrbootstrap.j2 dest='{{solr_home}}/solr-{{solr_version}}/solrbootstrap' mode=0755 owner={{mapr_admin_username}}
 
 - name: set ownership to mapr for solr
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   file: state=directory owner=mapr group=mapr recurse=true path={{item}}
   with_items:
     - '{{solr_home}}/solr-{{solr_version}}'
@@ -57,7 +65,7 @@
 
 # Uncomment the following if not using HDFS.
 #- name: disable locks on the index files (we are storing on NFS, no locking)
-#  sudo: yes
+#  become: yes
 #  lineinfile:
 #    line: "<lockType>${solr.lock.type:single}</lockType>"
 #    regexp: "<lockType>.*solr.lock.type"
@@ -68,12 +76,14 @@
   register: solr_config_home_check
 
 - name: copy example to solr_config_home
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   command: cp -a {{solr_home}}/solr-{{solr_version}}/example {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
   when: solr_config_home_check.stat.exists == False
 
 - name: rename collection to {{collection_name}}
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   command: mv collection1 {{solr_collection}}
   args:
     chdir: "{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr"
@@ -81,7 +91,8 @@
 
 # N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
 - name: rename collection in core.properties
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   lineinfile: dest="{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/core.properties" regexp="^name=" line="name={{solr_collection}}" backup=no
 
 - name: pause a few seconds
@@ -89,24 +100,28 @@
 
 # N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
 - name: copy solrconfig.xml to the copied example
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   template: src=solrconfig.xml.j2 dest='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr/{{solr_collection}}/conf/solrconfig.xml' backup=no owner='{{mapr_admin_username}}'
   notify: restart solr
 
 # N.B. HDFS does not support ':' in filenames, and will return a confusing error if backup=yes
 - name: copy solr config to solr's home
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   run_once: yes
   command: hadoop fs -copyFromLocal -f -p file://{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}} {{solr_hdfs_home}}
   #command: cp -r {{solr_home}}/solr-{{solr_version}}/example /apps/solr/{{ansible_hostname}}
 
 - name: delete solr log 
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   file: path='{{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/logs/solr.log' state=absent 
   when: solr_config_home_check.stat.exists == False
 
 - name: bootstrap solr zk
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   command: '{{solr_home}}/solr-{{solr_version}}/solrbootstrap'
   async: 60
   poll: 0
@@ -124,17 +139,20 @@
   when: bootstrap.started is defined
  
 - name: kill the bootstrapped solr
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   command: pkill -f "solr -jar start.jar"
   when: bootstrap.started is defined
 
 - name: write warden.conf for solr
-  sudo_user: root
+  become: yes
+  become_user: root
   template: src=warden.solr.conf.j2 dest=/opt/mapr/conf/conf.d/warden.solr.conf mode=0644 owner=mapr group=mapr 
   register: warden_config
 
 - name: add MapR v5.1.0 libraries to solr example
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
   with_items:
     - zookeeper-3.4.5-mapr-1503.jar
@@ -147,7 +165,8 @@
   when: mapr_version in ("v5.1.0")
 
 - name: add MapR v4.1.0 libraries to solr example
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   file: src=/opt/mapr/lib/{{item}} path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=link force=yes
   with_items:
     - zookeeper-3.4.5-mapr-1503.jar
@@ -160,7 +179,8 @@
   when: mapr_version in ("v4.1.0")
 
 - name: remove old solr libraries
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   file: path={{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}/solr-webapp/webapp/WEB-INF/lib/{{item}} state=absent
   with_items:
     - hadoop-auth-2.2.0.jar
@@ -174,7 +194,8 @@
   when: warden_config|changed
 
 - name: start solr
-  sudo_user: '{{mapr_admin_username}}'
+  become: yes
+  become_user: '{{mapr_admin_username}}'
   command: maprcli node services -action restart -name solr -filter csvc==solr
 
 - name: wait for solr to be listening
