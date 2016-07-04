@@ -2,8 +2,6 @@
 # defaults file for solr
 
 solr_version: 4.10.3
-#solr_version: 4.4.0
-solr_tarball_sha256: ac7024a0a759c6c53cc3a66b3a84757d599d350f491eb221160613356532e2b6
 solr_tarball_sha256: 9c94131bc5f8f335bfef46715394ab78373e31b3
 solr_home: /opt/solr
 solr_collection: my_collection

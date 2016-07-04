@@ -12,7 +12,7 @@
   become: yes
   become_user: root
   yum: name=lsof state=present
-  environment: proxy_env
+  environment: '{{proxy_env}}'
 
 - name: stat the solr tarball
   stat: path="/tmp/solr-{{solr_version}}.tgz"
@@ -23,7 +23,7 @@
     url: http://archive.apache.org/dist/lucene/solr/{{solr_version}}/solr-{{solr_version}}.tgz
     dest: /tmp
   when: solr_tarball.stat.exists == False
-  environment: proxy_env
+  environment: '{{proxy_env}}'
 
 - name: ensure solr_home exists
   become: yes
@@ -81,7 +81,7 @@
   command: cp -a {{solr_home}}/solr-{{solr_version}}/example {{solr_home}}/solr-{{solr_version}}/{{solr_config_home}}
   when: solr_config_home_check.stat.exists == False
 
-- name: rename collection to {{collection_name}}
+- name: rename collection
   become: yes
   become_user: '{{mapr_admin_username}}'
   command: mv collection1 {{solr_collection}}
